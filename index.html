@@ -237,12 +237,32 @@
       min-width: 0;
     }
 
+    .milestone-group.is-dragging,
+    .action-card.is-dragging { opacity: .42; }
+
+    .milestone-group.drop-before::before,
+    .milestone-group.drop-after::after {
+      content: "";
+      position: absolute;
+      z-index: 2;
+      top: 6px;
+      bottom: 6px;
+      width: 4px;
+      border-radius: 999px;
+      background: var(--green);
+      box-shadow: 0 0 0 4px rgba(36, 107, 73, .12);
+    }
+
+    .milestone-group.drop-before::before { left: -8px; }
+    .milestone-group.drop-after::after { right: -8px; }
+
     .milestone-card {
       padding: 15px;
       border: 1px solid var(--line);
       border-radius: 17px;
       background: var(--card);
       box-shadow: 0 5px 14px rgba(29, 42, 34, .04);
+      cursor: grab;
     }
 
     .card-head {
@@ -287,6 +307,28 @@
       gap: 2px;
     }
 
+    .drag-handle {
+      display: grid;
+      place-items: center;
+      width: 32px;
+      height: 32px;
+      flex: 0 0 auto;
+      border: 0;
+      border-radius: 10px;
+      background: transparent;
+      color: var(--muted);
+      cursor: grab;
+      font-size: 17px;
+      font-weight: 900;
+      line-height: 1;
+      touch-action: none;
+      user-select: none;
+    }
+
+    .drag-handle:hover { background: var(--green-soft); color: var(--green); }
+    .drag-handle:active { cursor: grabbing; }
+    .drag-handle:focus-visible { outline: 3px solid rgba(36, 107, 73, .2); outline-offset: 2px; }
+
     .milestone-title {
       width: 100%;
       border: 0;
@@ -297,6 +339,7 @@
       font-size: 17px;
       font-weight: 800;
       letter-spacing: -.03em;
+      cursor: text;
     }
 
     .actions-wrap {
@@ -330,7 +373,7 @@
 
     .action-card {
       display: grid;
-      grid-template-columns: 30px minmax(0, 1fr) 30px;
+      grid-template-columns: 30px minmax(0, 1fr) 30px 30px;
       gap: 8px;
       align-items: center;
       min-height: 54px;
@@ -338,15 +381,19 @@
       border: 1px solid #d7dcd4;
       border-radius: 14px;
       background: rgba(255, 254, 249, .88);
+      cursor: grab;
     }
 
     .action-card.done { background: #f0f4ef; }
     .action-card.done .action-input { color: #7e8880; text-decoration: line-through; }
+    .action-card.drop-before { box-shadow: 0 -4px 0 -1px var(--green); }
+    .action-card.drop-after { box-shadow: 0 4px 0 -1px var(--green); }
 
     .check {
       width: 20px;
       height: 20px;
       accent-color: var(--green);
+      cursor: pointer;
     }
 
     .action-input {
@@ -355,6 +402,7 @@
       background: transparent;
       color: var(--ink);
       font-weight: 700;
+      cursor: text;
     }
 
     .empty {
@@ -378,7 +426,7 @@
 
     @media (max-width: 460px) {
       .brand-mark { display: none; }
-      .action-card { grid-template-columns: 28px minmax(0, 1fr) 28px; }
+      .action-card { grid-template-columns: 28px minmax(0, 1fr) 28px 28px; gap: 5px; }
     }
   </style>
 </head>
@@ -409,7 +457,7 @@
           <div class="panel-head">
             <div class="panel-title">
               <h2 id="milestoneHeading">중간 목표</h2>
-              <span class="priority-note">중요함 ← 왼쪽 · 오른쪽 → 낮은 우선순위</span>
+              <span class="priority-note">드래그하여 우선순위 변경 · 왼쪽이 중요</span>
             </div>
             <button class="button primary small" id="addMilestone" data-testid="add-milestone" type="button">+ 중간 목표</button>
           </div>
@@ -422,7 +470,7 @@
       <div class="section-head">
         <div>
           <h2 id="actionHeading">실행 행동</h2>
-          <p>중간 목표별로 지금 할 행동을 관리합니다.</p>
+          <p>중간 목표별로 지금 할 행동을 관리하고, 행을 드래그해 순서를 바꿉니다.</p>
         </div>
       </div>
       <div class="action-board" id="actionGrid" data-testid="action-list" aria-live="polite"></div>
@@ -484,11 +532,12 @@
         }
 
         milestoneGrid.innerHTML = state.milestones.map((milestone, index) => `
-          <article class="milestone-group" id="milestone-${milestone.id}" data-testid="milestone-card" data-milestone-id="${milestone.id}" data-priority="${index + 1}">
+          <article class="milestone-group" id="milestone-${milestone.id}" data-testid="milestone-card" data-dnd-item="milestone" data-milestone-id="${milestone.id}" data-priority="${index + 1}" draggable="true">
             <div class="milestone-card">
               <div class="card-head">
                 <span class="step-badge">우선 ${index + 1}</span>
                 <div class="move-controls">
+                  <button class="drag-handle" type="button" draggable="true" data-testid="milestone-drag-handle" data-drag-handle="milestone" aria-label="중간 목표 ${index + 1} 드래그하여 순서 변경" title="드래그하여 순서 변경">⠿</button>
                   <button class="icon-button" type="button" data-testid="priority-up" data-action="move-left" aria-label="중간 목표 ${index + 1} 우선순위 높이기"${index === 0 ? " disabled" : ""}>←</button>
                   <button class="icon-button" type="button" data-testid="priority-down" data-action="move-right" aria-label="중간 목표 ${index + 1} 우선순위 낮추기"${index === state.milestones.length - 1 ? " disabled" : ""}>→</button>
                   <button class="icon-button" type="button" data-testid="delete-milestone" data-action="remove-milestone" aria-label="중간 목표 ${index + 1} 삭제">×</button>
@@ -506,9 +555,10 @@
               </div>
               <div class="action-list" data-testid="actions-for-milestone">
                 ${milestone.actions.length ? milestone.actions.map(action => `
-                  <div class="action-card${action.done ? " done" : ""}" id="action-${action.id}" data-testid="action-card" data-task-id="${action.id}" data-complete="${action.done}">
+                  <div class="action-card${action.done ? " done" : ""}" id="action-${action.id}" data-testid="action-card" data-dnd-item="action" data-task-id="${action.id}" data-complete="${action.done}" draggable="true">
                     <input class="check" id="action-done-${action.id}" name="actionDone" type="checkbox" data-testid="action-done" data-task-field="done"${action.done ? " checked" : ""} aria-label="행동 완료 여부">
                     <input class="action-input" id="action-title-${action.id}" name="actionTitle" data-testid="action-title" data-task-field="title" value="${esc(action.title)}" aria-label="실행 행동 입력" placeholder="바로 실행할 한 가지 행동">
+                    <button class="drag-handle" type="button" draggable="true" data-testid="action-drag-handle" data-drag-handle="action" aria-label="행동 드래그하여 순서 변경" title="드래그하여 순서 변경">↕</button>
                     <button class="icon-button" type="button" data-testid="delete-action" data-action="remove-task" aria-label="행동 삭제">×</button>
                   </div>`).join("") : '<div class="empty">행동을 추가하세요.</div>'}
               </div>
@@ -599,6 +649,152 @@
       milestoneGrid.addEventListener("click", handleClick);
       actionGrid.addEventListener("input", handleInput);
       actionGrid.addEventListener("click", handleClick);
+
+      let activeDrag = null;
+
+      const clearDropMarkers = () => {
+        document.querySelectorAll(".is-dragging, .drop-before, .drop-after").forEach(element => {
+          element.classList.remove("is-dragging", "drop-before", "drop-after");
+        });
+      };
+
+      const getDropSide = (item, event, axis) => {
+        const rect = item.getBoundingClientRect();
+        const pointer = axis === "x" ? event.clientX : event.clientY;
+        const midpoint = axis === "x" ? rect.left + rect.width / 2 : rect.top + rect.height / 2;
+        return pointer < midpoint ? "before" : "after";
+      };
+
+      const markDropTarget = (target, side) => {
+        document.querySelectorAll(".drop-before, .drop-after").forEach(element => {
+          element.classList.remove("drop-before", "drop-after");
+        });
+        target.classList.add(`drop-${side}`);
+      };
+
+      const getMilestoneDropPlacement = event => {
+        const gridRect = milestoneGrid.getBoundingClientRect();
+        if (event.clientY < gridRect.top - 12 || event.clientY > gridRect.bottom + 12) return null;
+
+        const candidates = [...milestoneGrid.querySelectorAll('[data-dnd-item="milestone"]')]
+          .filter(item => item.dataset.milestoneId !== activeDrag?.id);
+        if (!candidates.length) return null;
+
+        const pointerX = event.clientX;
+        const target = candidates.find(item => {
+          const rect = item.getBoundingClientRect();
+          return pointerX < rect.left + rect.width / 2;
+        }) ?? candidates.at(-1);
+        const rect = target.getBoundingClientRect();
+        const side = pointerX < rect.left + rect.width / 2 ? "before" : "after";
+        return { target, side };
+      };
+
+      const reorderByDrop = (items, sourceId, targetId, side) => {
+        const sourceIndex = items.findIndex(item => item.id === sourceId);
+        const targetIndex = items.findIndex(item => item.id === targetId);
+        if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) return false;
+
+        let insertionIndex = targetIndex + (side === "after" ? 1 : 0);
+        const [movedItem] = items.splice(sourceIndex, 1);
+        if (sourceIndex < insertionIndex) insertionIndex -= 1;
+        items.splice(insertionIndex, 0, movedItem);
+        return sourceIndex !== insertionIndex;
+      };
+
+      const handleDragStart = event => {
+        const handle = event.target.closest("[data-drag-handle]");
+        const item = event.target.closest("[data-dnd-item]");
+        const interactive = event.target.closest("input, textarea, select, button, a, [contenteditable='true']");
+        if (!item || (!handle && interactive)) {
+          event.preventDefault();
+          return;
+        }
+
+        const group = item.closest("[data-milestone-id]");
+        if (!item || !group) return;
+
+        activeDrag = item.dataset.dndItem === "milestone"
+          ? { type: "milestone", id: group.dataset.milestoneId }
+          : { type: "action", id: item.dataset.taskId, milestoneId: group.dataset.milestoneId };
+
+        item.classList.add("is-dragging");
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", `${activeDrag.type}:${activeDrag.id}`);
+        const rect = item.getBoundingClientRect();
+        event.dataTransfer.setDragImage(
+          item,
+          Math.max(0, Math.min(event.clientX - rect.left, rect.width)),
+          Math.max(0, Math.min(event.clientY - rect.top, rect.height))
+        );
+      };
+
+      const handleMilestoneDragOver = event => {
+        if (activeDrag?.type !== "milestone") return;
+        const placement = getMilestoneDropPlacement(event);
+        if (!placement) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+        markDropTarget(placement.target, placement.side);
+      };
+
+      const handleMilestoneDrop = event => {
+        if (activeDrag?.type !== "milestone") return;
+        const placement = getMilestoneDropPlacement(event);
+        if (!placement) return;
+        event.preventDefault();
+        const changed = reorderByDrop(
+          state.milestones,
+          activeDrag.id,
+          placement.target.dataset.milestoneId,
+          placement.side
+        );
+        clearDropMarkers();
+        activeDrag = null;
+        if (changed) { save(); render(); }
+      };
+
+      const handleActionDragOver = event => {
+        if (activeDrag?.type !== "action") return;
+        const target = event.target.closest('[data-dnd-item="action"]');
+        const group = target?.closest("[data-milestone-id]");
+        if (!target || group?.dataset.milestoneId !== activeDrag.milestoneId || target.dataset.taskId === activeDrag.id) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+        markDropTarget(target, getDropSide(target, event, "y"));
+      };
+
+      const handleActionDrop = event => {
+        if (activeDrag?.type !== "action") return;
+        const target = event.target.closest('[data-dnd-item="action"]');
+        const group = target?.closest("[data-milestone-id]");
+        if (!target || group?.dataset.milestoneId !== activeDrag.milestoneId || target.dataset.taskId === activeDrag.id) return;
+        event.preventDefault();
+        const milestone = state.milestones.find(item => item.id === activeDrag.milestoneId);
+        const changed = milestone && reorderByDrop(
+          milestone.actions,
+          activeDrag.id,
+          target.dataset.taskId,
+          getDropSide(target, event, "y")
+        );
+        clearDropMarkers();
+        activeDrag = null;
+        if (changed) { save(); render(); }
+      };
+
+      const handleDragEnd = () => {
+        clearDropMarkers();
+        activeDrag = null;
+      };
+
+      milestoneGrid.addEventListener("dragstart", handleDragStart);
+      milestoneGrid.closest(".milestone-panel").addEventListener("dragover", handleMilestoneDragOver);
+      milestoneGrid.closest(".milestone-panel").addEventListener("drop", handleMilestoneDrop);
+      milestoneGrid.addEventListener("dragend", handleDragEnd);
+      actionGrid.addEventListener("dragstart", handleDragStart);
+      actionGrid.addEventListener("dragover", handleActionDragOver);
+      actionGrid.addEventListener("drop", handleActionDrop);
+      actionGrid.addEventListener("dragend", handleDragEnd);
 
       render();
     })();
