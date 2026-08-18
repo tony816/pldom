@@ -1,0 +1,607 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="최종 목표를 중간 목표와 실행 행동으로 나누는 박스형 목표 설계 도구">
+  <title>목표 설계 보드</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17211b;
+      --muted: #647168;
+      --paper: #f4f5ef;
+      --card: #fffef9;
+      --line: #cfd6cc;
+      --green: #246b49;
+      --green-soft: #e6f0e9;
+      --amber: #b56b20;
+      --amber-soft: #fff1dc;
+      --red: #a7483f;
+      --shadow: 0 14px 34px rgba(29, 42, 34, .08);
+      --radius: 22px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 15% 8%, rgba(217, 230, 209, .65), transparent 30%),
+        linear-gradient(180deg, #f8f8f3 0%, var(--paper) 100%);
+      color: var(--ink);
+      font-family: "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+    }
+
+    button, input, textarea, select { font: inherit; }
+
+    button { cursor: pointer; }
+
+    .app {
+      width: min(1320px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 64px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 28px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      background: var(--ink);
+      color: white;
+      font-weight: 800;
+      letter-spacing: -.04em;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: clamp(21px, 3vw, 27px);
+      letter-spacing: -.04em;
+    }
+
+    .brand p {
+      margin: 3px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .top-actions { display: flex; align-items: center; gap: 10px; }
+
+    .saved {
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .button {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--card);
+      color: var(--ink);
+      padding: 9px 13px;
+      font-weight: 700;
+      transition: transform .16s ease, border-color .16s ease, background .16s ease;
+    }
+
+    .button:hover { transform: translateY(-1px); border-color: #aeb9ae; }
+    .button:focus-visible, .field:focus-visible { outline: 3px solid rgba(36, 107, 73, .2); outline-offset: 2px; }
+    .button.primary { background: var(--green); border-color: var(--green); color: white; }
+    .button.small { padding: 7px 10px; font-size: 13px; }
+    .button.danger { color: var(--red); }
+
+    .flow-label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0 0 12px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .08em;
+    }
+
+    .flow-label::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .final-card {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      align-items: center;
+      gap: 18px;
+      min-width: 0;
+      padding: 14px 18px;
+      border: 1px solid #c4d1c6;
+      border-radius: 18px;
+      background: var(--card);
+      box-shadow: 0 7px 20px rgba(29, 42, 34, .06);
+    }
+
+    .card-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      margin-bottom: 0;
+      color: var(--green);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .card-kicker::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .goal-title {
+      width: 100%;
+      min-height: 40px;
+      resize: none;
+      border: 0;
+      border-bottom: 1px solid var(--line);
+      background: transparent;
+      color: var(--ink);
+      font-size: clamp(19px, 2.4vw, 25px);
+      font-weight: 800;
+      letter-spacing: -.05em;
+      line-height: 1.25;
+      padding: 7px 0;
+      text-align: center;
+    }
+
+    .goal-title::placeholder { color: #9ca79f; }
+
+    .milestone-panel {
+      min-width: 0;
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      background: rgba(255, 254, 249, .62);
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .panel-head h2 { margin: 0; font-size: 18px; letter-spacing: -.04em; }
+
+    .panel-title {
+      display: flex;
+      align-items: baseline;
+      gap: 9px;
+      min-width: 0;
+    }
+
+    .priority-note {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .action-section { margin-top: 30px; }
+
+    .section-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .section-head h2 { margin: 0; font-size: 21px; letter-spacing: -.04em; }
+    .section-head p { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
+
+    .milestone-grid {
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(230px, 1fr);
+      gap: 12px;
+      align-items: start;
+      overflow-x: auto;
+      overscroll-behavior-inline: contain;
+      padding-bottom: 5px;
+    }
+
+    .milestone-group {
+      position: relative;
+      min-width: 0;
+    }
+
+    .milestone-card {
+      padding: 15px;
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      background: var(--card);
+      box-shadow: 0 5px 14px rgba(29, 42, 34, .04);
+    }
+
+    .card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 9px;
+    }
+
+    .step-badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      border-radius: 999px;
+      background: var(--green-soft);
+      color: var(--green);
+      padding: 5px 10px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .icon-button {
+      display: grid;
+      place-items: center;
+      width: 32px;
+      height: 32px;
+      border: 0;
+      border-radius: 10px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 20px;
+    }
+
+    .icon-button:hover { background: #f0f2ed; color: var(--red); }
+    .icon-button:disabled { cursor: default; opacity: .28; }
+    .icon-button:disabled:hover { background: transparent; color: var(--muted); }
+
+    .move-controls {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .milestone-title {
+      width: 100%;
+      border: 0;
+      border-bottom: 1px solid var(--line);
+      background: transparent;
+      color: var(--ink);
+      padding: 2px 0 8px;
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: -.03em;
+    }
+
+    .actions-wrap {
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 254, 249, .62);
+    }
+
+    .actions-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .actions-head strong { font-size: 13px; }
+
+    .action-list { display: grid; gap: 9px; }
+
+    .action-board {
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(300px, 1fr);
+      gap: 16px;
+      align-items: start;
+      overflow-x: auto;
+      padding-bottom: 5px;
+    }
+
+    .action-card {
+      display: grid;
+      grid-template-columns: 30px minmax(0, 1fr) 30px;
+      gap: 8px;
+      align-items: center;
+      min-height: 54px;
+      padding: 8px;
+      border: 1px solid #d7dcd4;
+      border-radius: 14px;
+      background: rgba(255, 254, 249, .88);
+    }
+
+    .action-card.done { background: #f0f4ef; }
+    .action-card.done .action-input { color: #7e8880; text-decoration: line-through; }
+
+    .check {
+      width: 20px;
+      height: 20px;
+      accent-color: var(--green);
+    }
+
+    .action-input {
+      min-width: 0;
+      border: 0;
+      background: transparent;
+      color: var(--ink);
+      font-weight: 700;
+    }
+
+    .empty {
+      padding: 24px 16px;
+      border: 1px dashed #c7cec5;
+      border-radius: var(--radius);
+      color: var(--muted);
+      text-align: center;
+      background: rgba(255, 255, 255, .35);
+    }
+
+    @media (max-width: 720px) {
+      .app { width: min(100% - 20px, 640px); padding-top: 18px; }
+      .topbar { align-items: flex-start; }
+      .brand p, .saved { display: none; }
+      .top-actions .button { padding-inline: 10px; }
+      .section-head { align-items: center; }
+      .final-card { grid-template-columns: 1fr; gap: 8px; }
+      .milestone-grid { grid-auto-columns: minmax(260px, 82vw); }
+    }
+
+    @media (max-width: 460px) {
+      .brand-mark { display: none; }
+      .action-card { grid-template-columns: 28px minmax(0, 1fr) 28px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app" id="goal-dashboard" data-testid="goal-dashboard" data-app-ready="false" data-storage="localStorage">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">목</div>
+        <div>
+          <h1>목표 설계 보드</h1>
+          <p>먼 목표를 오늘의 행동으로 연결합니다.</p>
+        </div>
+      </div>
+      <div class="top-actions">
+        <span class="saved" id="savedState" role="status" aria-live="polite">로컬에 저장됨</span>
+        <button class="button danger" id="resetButton" data-testid="reset-board" type="button" aria-label="목표 보드 초기화" title="이 브라우저에 저장된 목표를 모두 지웁니다">초기화</button>
+      </div>
+    </header>
+
+    <section class="dashboard" aria-labelledby="dashboardHeading">
+      <div class="flow-label" id="dashboardHeading">목표 대시보드</div>
+      <div class="dashboard-grid">
+        <div class="final-card" id="final-goal-card" data-testid="final-goal-card">
+          <div class="card-kicker">최종 목표</div>
+          <textarea class="goal-title" id="final-goal-title" name="finalGoal" data-final="title" data-testid="final-goal-title" rows="1" aria-label="최종 목표 입력" placeholder="이루고 싶은 최종 목표를 적으세요"></textarea>
+        </div>
+        <section class="milestone-panel" aria-labelledby="milestoneHeading">
+          <div class="panel-head">
+            <div class="panel-title">
+              <h2 id="milestoneHeading">중간 목표</h2>
+              <span class="priority-note">중요함 ← 왼쪽 · 오른쪽 → 낮은 우선순위</span>
+            </div>
+            <button class="button primary small" id="addMilestone" data-testid="add-milestone" type="button">+ 중간 목표</button>
+          </div>
+          <div class="milestone-grid" id="milestoneGrid" data-testid="milestone-list" aria-live="polite"></div>
+        </section>
+      </div>
+    </section>
+
+    <section class="action-section" aria-labelledby="actionHeading">
+      <div class="section-head">
+        <div>
+          <h2 id="actionHeading">실행 행동</h2>
+          <p>중간 목표별로 지금 할 행동을 관리합니다.</p>
+        </div>
+      </div>
+      <div class="action-board" id="actionGrid" data-testid="action-list" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const STORAGE_KEY = "goal-box-board-v1";
+      const uid = () => globalThis.crypto?.randomUUID?.() ?? `g-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      const emptyState = () => ({
+        final: { title: "" },
+        milestones: [{
+          id: uid(), title: "",
+          actions: [{ id: uid(), title: "", done: false }]
+        }]
+      });
+
+      const load = () => {
+        try {
+          const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+          return saved?.final && Array.isArray(saved?.milestones) ? saved : emptyState();
+        } catch { return emptyState(); }
+      };
+
+      let state = load();
+      const milestoneGrid = document.getElementById("milestoneGrid");
+      const actionGrid = document.getElementById("actionGrid");
+      const savedState = document.getElementById("savedState");
+      let saveTimer;
+
+      const esc = (value = "") => String(value)
+        .replaceAll("&", "&amp;").replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+
+      const save = () => {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch {
+          savedState.textContent = "로컬 저장 불가";
+          return;
+        }
+        savedState.textContent = "로컬에 저장 중…";
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(() => { savedState.textContent = "로컬에 저장됨"; }, 350);
+      };
+
+      const render = () => {
+        document.getElementById("goal-dashboard").dataset.appReady = "false";
+        document.querySelectorAll("[data-final]").forEach(el => {
+          el.value = state.final[el.dataset.final] ?? "";
+        });
+
+        if (!state.milestones.length) {
+          milestoneGrid.innerHTML = '<div class="empty">중간 목표를 추가해 시작하세요.</div>';
+          actionGrid.innerHTML = '<div class="empty">중간 목표를 추가하면 실행 행동 영역이 생깁니다.</div>';
+          document.getElementById("goal-dashboard").dataset.appReady = "true";
+          return;
+        }
+
+        milestoneGrid.innerHTML = state.milestones.map((milestone, index) => `
+          <article class="milestone-group" id="milestone-${milestone.id}" data-testid="milestone-card" data-milestone-id="${milestone.id}" data-priority="${index + 1}">
+            <div class="milestone-card">
+              <div class="card-head">
+                <span class="step-badge">우선 ${index + 1}</span>
+                <div class="move-controls">
+                  <button class="icon-button" type="button" data-testid="priority-up" data-action="move-left" aria-label="중간 목표 ${index + 1} 우선순위 높이기"${index === 0 ? " disabled" : ""}>←</button>
+                  <button class="icon-button" type="button" data-testid="priority-down" data-action="move-right" aria-label="중간 목표 ${index + 1} 우선순위 낮추기"${index === state.milestones.length - 1 ? " disabled" : ""}>→</button>
+                  <button class="icon-button" type="button" data-testid="delete-milestone" data-action="remove-milestone" aria-label="중간 목표 ${index + 1} 삭제">×</button>
+                </div>
+              </div>
+              <input class="milestone-title" id="milestone-title-${milestone.id}" name="milestoneTitle" data-testid="milestone-title" data-field="title" value="${esc(milestone.title)}" aria-label="우선순위 ${index + 1} 중간 목표 입력" placeholder="이번 단계에서 이룰 목표">
+            </div>
+          </article>`).join("");
+
+        actionGrid.innerHTML = state.milestones.map((milestone, index) => `
+          <article class="actions-wrap" id="actions-${milestone.id}" data-testid="milestone-actions" data-milestone-id="${milestone.id}" data-priority="${index + 1}" aria-labelledby="actions-heading-${milestone.id}">
+              <div class="actions-head">
+                <strong id="actions-heading-${milestone.id}">${esc(milestone.title) || `중간 목표 ${index + 1}`}</strong>
+                <button class="button small" type="button" data-testid="add-action" data-action="add-task" aria-label="${esc(milestone.title) || `중간 목표 ${index + 1}`}에 행동 추가">+ 행동</button>
+              </div>
+              <div class="action-list" data-testid="actions-for-milestone">
+                ${milestone.actions.length ? milestone.actions.map(action => `
+                  <div class="action-card${action.done ? " done" : ""}" id="action-${action.id}" data-testid="action-card" data-task-id="${action.id}" data-complete="${action.done}">
+                    <input class="check" id="action-done-${action.id}" name="actionDone" type="checkbox" data-testid="action-done" data-task-field="done"${action.done ? " checked" : ""} aria-label="행동 완료 여부">
+                    <input class="action-input" id="action-title-${action.id}" name="actionTitle" data-testid="action-title" data-task-field="title" value="${esc(action.title)}" aria-label="실행 행동 입력" placeholder="바로 실행할 한 가지 행동">
+                    <button class="icon-button" type="button" data-testid="delete-action" data-action="remove-task" aria-label="행동 삭제">×</button>
+                  </div>`).join("") : '<div class="empty">행동을 추가하세요.</div>'}
+              </div>
+          </article>`).join("");
+        document.getElementById("goal-dashboard").dataset.appReady = "true";
+      };
+
+      document.querySelectorAll("[data-final]").forEach(el => {
+        el.addEventListener("input", event => {
+          state.final[event.target.dataset.final] = event.target.value;
+          save();
+        });
+      });
+
+      document.getElementById("addMilestone").addEventListener("click", () => {
+        state.milestones.push({
+          id: uid(), title: "", actions: []
+        });
+        save(); render();
+      });
+
+      document.getElementById("resetButton").addEventListener("click", () => {
+        if (!confirm("로컬에 저장된 모든 목표와 행동을 초기화할까요?")) return;
+        try { localStorage.removeItem(STORAGE_KEY); } catch { /* 빈 상태 저장에서 다시 처리 */ }
+        state = emptyState();
+        render();
+        save();
+        requestAnimationFrame(() => document.getElementById("final-goal-title")?.focus());
+      });
+
+      const handleInput = event => {
+        const group = event.target.closest("[data-milestone-id]");
+        if (!group) return;
+        const milestone = state.milestones.find(m => m.id === group.dataset.milestoneId);
+        if (!milestone) return;
+
+        if (event.target.dataset.field) {
+          milestone[event.target.dataset.field] = event.target.value;
+          const actionHeading = actionGrid.querySelector(`[data-milestone-id="${milestone.id}"] .actions-head strong`);
+          if (actionHeading) {
+            const index = state.milestones.findIndex(m => m.id === milestone.id);
+            actionHeading.textContent = milestone.title || `중간 목표 ${index + 1}`;
+          }
+        }
+
+        if (event.target.dataset.taskField) {
+          const taskEl = event.target.closest("[data-task-id]");
+          const task = milestone.actions.find(a => a.id === taskEl?.dataset.taskId);
+          if (task) {
+            task[event.target.dataset.taskField] = event.target.type === "checkbox" ? event.target.checked : event.target.value;
+            if (event.target.type === "checkbox") {
+              taskEl.classList.toggle("done", event.target.checked);
+              taskEl.dataset.complete = String(event.target.checked);
+            }
+          }
+        }
+        save();
+      };
+
+      const handleClick = event => {
+        const button = event.target.closest("[data-action]");
+        if (!button) return;
+        const group = button.closest("[data-milestone-id]");
+        const milestoneIndex = state.milestones.findIndex(m => m.id === group?.dataset.milestoneId);
+        if (milestoneIndex < 0) return;
+        const milestone = state.milestones[milestoneIndex];
+
+        if (button.dataset.action === "add-task") {
+          milestone.actions.push({ id: uid(), title: "", done: false });
+        }
+        if (button.dataset.action === "remove-task") {
+          const taskId = button.closest("[data-task-id]")?.dataset.taskId;
+          milestone.actions = milestone.actions.filter(a => a.id !== taskId);
+        }
+        if (button.dataset.action === "remove-milestone") {
+          state.milestones.splice(milestoneIndex, 1);
+        }
+        if (button.dataset.action === "move-left" && milestoneIndex > 0) {
+          [state.milestones[milestoneIndex - 1], state.milestones[milestoneIndex]] = [state.milestones[milestoneIndex], state.milestones[milestoneIndex - 1]];
+        }
+        if (button.dataset.action === "move-right" && milestoneIndex < state.milestones.length - 1) {
+          [state.milestones[milestoneIndex + 1], state.milestones[milestoneIndex]] = [state.milestones[milestoneIndex], state.milestones[milestoneIndex + 1]];
+        }
+        save(); render();
+      };
+
+      milestoneGrid.addEventListener("input", handleInput);
+      milestoneGrid.addEventListener("click", handleClick);
+      actionGrid.addEventListener("input", handleInput);
+      actionGrid.addEventListener("click", handleClick);
+
+      render();
+    })();
+  </script>
+</body>
+</html>
